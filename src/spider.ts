@@ -2,6 +2,11 @@ import request from "request";
 import cheerio from "cheerio";
 import fs from "fs";
 
+fs.mkdirSync("../download");
+let x = 0;
+const webUrl = "https://www.ijjxs.com";
+const defaultPath = `D:/Do it/web/downode.js/download`;
+
 // 创建文件的函数，如果文件夹不存在，先创建文件夹
 const createFile = (
   // 文件的相对路径
@@ -52,6 +57,11 @@ const createFile = (
       fs.mkdirSync(defaultPath + dir);
     }
   }
+  // 开始递归
+  spiderHtml(`${webUrl}${filePath}`);
+
+  if (fs.existsSync(`${defaultPath}${filePath}`)) return;
+
   fs.writeFile(`${defaultPath}${filePath}`, content, {}, (error) => {
     if (error) {
       return console.log("error");
@@ -62,8 +72,9 @@ const createFile = (
 };
 
 const spiderHtml = (url: string) => {
-  fs.mkdirSync("../download");
-
+  x++;
+  console.log(x);
+  if (x > 500) return;
   request(url, (error, response, body) => {
     //res.statusCode 为200则表示链接成功
     if (error === null && response.statusCode === 200) {
@@ -85,11 +96,11 @@ const spiderHtml = (url: string) => {
               const $ = cheerio.load(body);
 
               // 调用createFile方法
-              createFile(`${scriptSrc}`, $.text(), url, "../download", "js");
+              createFile(`${scriptSrc}`, $.text(), url, defaultPath, "js");
             }
           });
 
-          element.attribs.src = `.${scriptSrc}`;
+          element.attribs.src = `${defaultPath}${scriptSrc}`;
         });
 
       // link标签
@@ -103,11 +114,11 @@ const spiderHtml = (url: string) => {
               console.log(`${url + hrefUrl}链接成功`);
               const $ = cheerio.load(body);
 
-              createFile(`${hrefUrl}`, $.text(), url, "../download", "css");
+              createFile(`${hrefUrl}`, $.text(), url, defaultPath, "css");
             }
           });
 
-          element.attribs.href = `.${hrefUrl}`;
+          element.attribs.href = `${defaultPath}${hrefUrl}`;
         });
 
       // a标签
@@ -130,18 +141,23 @@ const spiderHtml = (url: string) => {
               const $ = cheerio.load(body);
 
               // 调用createFile方法
-              createFile(`${hrefUrl}`, $.html(), url, "../download", "html");
+              createFile(`${hrefUrl}`, $.html(), url, defaultPath, "html");
             }
           });
           // 修改路径为相对路径
-          element.attribs.href = `.${hrefUrl}`;
+          element.attribs.href = `${defaultPath}${hrefUrl}`;
         });
       // 调用createFile方法
       // createFile("/index.html", $.html(), url, "../download", "html");
 
-      fs.writeFile("../download/index.html", $.html(), {}, () => {});
+      if (x === 1)
+        fs.writeFile(`${defaultPath}/index.html`, $.html(), {}, () => {});
+      else {
+        const filePath = url.split(webUrl).join("");
+        fs.writeFile(`${defaultPath}${filePath}`, $.html(), {}, () => {});
+      }
     }
   });
 };
 
-spiderHtml("https://www.ijjxs.com");
+spiderHtml(webUrl);
