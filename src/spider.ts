@@ -1,11 +1,22 @@
 import request from "request";
 import cheerio from "cheerio";
 import fs from "fs";
+// 写入本地文件流
+import https from "https";
+import path from "path";
 
-fs.mkdirSync("../download");
 let x = 0;
 const webUrl = "https://www.ijjxs.com";
 const defaultPath = `D:/Do it/web/downode.js/download`;
+fs.mkdirSync(defaultPath);
+
+// 写入本地文件流（图片）
+const downloadPic = (url: string) => {
+  const req = https.request(url, (res) => {
+    res.pipe(fs.createWriteStream(path.basename("demo.jpg")));
+  });
+  req.end();
+};
 
 // 创建文件的函数，如果文件夹不存在，先创建文件夹
 const createFile = (
@@ -30,21 +41,6 @@ const createFile = (
 
   // 删除首项空字符串''
   pathArr.shift();
-  // if (pathArr.length === 1) {
-  //   return fs.writeFile(
-  //     // '../download/index.html'
-  //     defaultPath + "/" + pathArr[0],
-  //     content,
-  //     {},
-  //     (error) => {
-  //       if (error) {
-  //         return console.log("error");
-  //       }
-
-  //       return console.log(`${webUrl}${filePath} 下载完成`);
-  //     }
-  //   );
-  // }
 
   if (pathArr.length === 1) return;
   // 如果是'/sss/aaa.xxx' => [ 'sss', 'aaa.xxx' ]，删尾项，如果是'/txt/wuxia' => '/txt/wuxia/index.html'
@@ -74,7 +70,7 @@ const createFile = (
 const spiderHtml = (url: string) => {
   x++;
   console.log(x);
-  if (x > 500) return;
+  // if (x > 500) return;
   request(url, (error, response, body) => {
     //res.statusCode 为200则表示链接成功
     if (error === null && response.statusCode === 200) {
@@ -153,6 +149,7 @@ const spiderHtml = (url: string) => {
       if (x === 1)
         fs.writeFile(`${defaultPath}/index.html`, $.html(), {}, () => {});
       else {
+        // 取得文件的相对路径
         const filePath = url.split(webUrl).join("");
         fs.writeFile(`${defaultPath}${filePath}`, $.html(), {}, () => {});
       }
