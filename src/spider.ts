@@ -1,19 +1,48 @@
 import request from "request";
 import cheerio from "cheerio";
 import fs from "fs";
-// 写入本地文件流
 import https from "https";
-import path from "path";
+
+const exitFileArr: Array<string> = [];
+// 不能命名文件的字符
+const fileReg = /[\\:*"<>|?]/g;
+
+const createDir = (arr: Array<string>) => {
+  let dir = "";
+  for (const index in arr) {
+    dir += "/" + arr[index];
+    // 如果路径不存在，则创建
+    if (!fs.existsSync(defaultPath + dir)) {
+      fs.mkdirSync(defaultPath + dir);
+    }
+  }
+};
 
 let x = 0;
-const webUrl = "https://www.ijjxs.com";
+const webUrl = "https://cn.vuejs.org";
 const defaultPath = `D:/Do it/web/downode.js/download`;
 fs.mkdirSync(defaultPath);
 
 // 写入本地文件流（图片）
 const downloadPic = (url: string) => {
-  const req = https.request(url, (res) => {
-    res.pipe(fs.createWriteStream(path.basename("demo.jpg")));
+  const arr = url.split("/");
+  console.log(url);
+  arr.pop();
+  arr.shift();
+  // 删除不符合fileReg的字符
+  url = url.replace(fileReg, "");
+  // let dir = "";
+  // for (const index in arr) {
+  //   dir += "/" + arr[index];
+  //   // 如果路径不存在，则创建
+  //   if (!fs.existsSync(defaultPath + dir)) {
+  //     fs.mkdirSync(defaultPath + dir);
+  //   }
+  // }
+  createDir(arr);
+
+  const req = https.request(webUrl + url, (res) => {
+    res.pipe(fs.createWriteStream(defaultPath + url));
   });
   req.end();
 };
@@ -31,14 +60,23 @@ const createFile = (
   // 文件的后缀
   fileType: string
 ) => {
+  // 如果不以'/'开头，则添加
+  if (!/^\//.test(filePath)) filePath = "/" + filePath;
+  // 删除不符合fileReg的字符
+  filePath = filePath.replace(fileReg, "");
   const pathArr: Array<string | never> = filePath.split("/");
-  if (pathArr[pathArr.length - 1] === "") {
-    //'/txt/wuxia' => ['','txt','wuxia',''] => ['','txt','wuxia','index.xxx']
-    pathArr[pathArr.length - 1] = `index.${fileType}`;
+  // if (pathArr[pathArr.length - 1] === "") {
+  //   //'/txt/wuxia' => ['','txt','wuxia',''] => ['','txt','wuxia','index.xxx']
+  //   pathArr[pathArr.length - 1] = `index.${fileType}`;
+  //   // 新文件相对路径
+  //   filePath = pathArr.join("/");
+  // }
+
+  if (!/\./g.test(pathArr[pathArr.length - 1])) {
+    pathArr.push(`index.html`);
     // 新文件相对路径
     filePath = pathArr.join("/");
   }
-
   // 删除首项空字符串''
   pathArr.shift();
 
@@ -53,21 +91,26 @@ const createFile = (
       fs.mkdirSync(defaultPath + dir);
     }
   }
+
+  if (fs.existsSync(`${defaultPath}${filePath}`))
+    return console.log("文件已存在");
+
   // 开始递归
   spiderHtml(`${webUrl}${filePath}`);
+  // console.log(`开始下载${defaultPath}${filePath}`);
 
-  if (fs.existsSync(`${defaultPath}${filePath}`)) return;
+  // fs.writeFile(`${defaultPath}${filePath}`, content, {}, (error) => {
+  //   exitFileArr.push(filePath);
+  //   if (error) {
+  //     return console.log("error");
+  //   }
 
-  fs.writeFile(`${defaultPath}${filePath}`, content, {}, (error) => {
-    if (error) {
-      return console.log("error");
-    }
-
-    return console.log(`${webUrl}${filePath} 下载完成`);
-  });
+  //   return console.log(`${webUrl}${filePath} 下载完成`);
+  // });
 };
 
 const spiderHtml = (url: string) => {
+  if (exitFileArr.includes(url.split(webUrl).join(""))) return;
   x++;
   console.log(x);
   // if (x > 500) return;
@@ -76,51 +119,63 @@ const spiderHtml = (url: string) => {
     if (error === null && response.statusCode === 200) {
       console.log(`${url}链接成功`);
       //使用cheerio来解析body（网页内容），提取我们想要的信息
-      // const e = cheerio.load(body).html()
       const $ = cheerio.load(body);
 
-      // sript标签
-      $("script[src]")
-        .toArray()
-        .forEach((element) => {
-          // src的相对链接
-          const scriptSrc = element.attribs.src;
+      // // sript标签
+      // $("script[src]")
+      //   .toArray()
+      //   .forEach((element) => {
+      //     if (exitFileArr.includes(element.attribs.src)) return;
+      //     // src的相对链接
+      //     const scriptSrc = element.attribs.src;
 
-          request(url + scriptSrc, (error, response, body) => {
-            if (error === null && response.statusCode === 200) {
-              console.log(`${url + scriptSrc}链接成功`);
-              const $ = cheerio.load(body);
+      //     request(url + scriptSrc, (error, response, body) => {
+      //       if (error === null && response.statusCode === 200) {
+      //         console.log(`${url + scriptSrc}链接成功`);
+      //         const $ = cheerio.load(body);
 
-              // 调用createFile方法
-              createFile(`${scriptSrc}`, $.text(), url, defaultPath, "js");
-            }
-          });
+      //         // 调用createFile方法
+      //         createFile(`${scriptSrc}`, $.text(), url, defaultPath, "js");
+      //       }
+      //     });
 
-          element.attribs.src = `${defaultPath}${scriptSrc}`;
-        });
+      //     element.attribs.src = `${defaultPath}${scriptSrc}`;
+      //   });
 
-      // link标签
-      $("link[href]")
-        .toArray()
-        .forEach((element) => {
-          const hrefUrl = element.attribs.href;
+      // // img标签
+      // $("img[src]")
+      //   .toArray()
+      //   .forEach((element) => {
+      //     downloadPic(element.attribs.src);
+      //     element.attribs.src = `${defaultPath}${element.attribs.src}`;
+      //   });
 
-          request(url + hrefUrl, (error, response, body) => {
-            if (error === null && response.statusCode === 200) {
-              console.log(`${url + hrefUrl}链接成功`);
-              const $ = cheerio.load(body);
+      // // link标签
+      // $("link[href]")
+      //   .toArray()
+      //   .forEach((element) => {
+      //     if (exitFileArr.includes(element.attribs.href)) return;
 
-              createFile(`${hrefUrl}`, $.text(), url, defaultPath, "css");
-            }
-          });
+      //     const hrefUrl = element.attribs.href;
 
-          element.attribs.href = `${defaultPath}${hrefUrl}`;
-        });
+      //     request(url + hrefUrl, (error, response, body) => {
+      //       if (error === null && response.statusCode === 200) {
+      //         console.log(`${url + hrefUrl}链接成功`);
+      //         const $ = cheerio.load(body);
+
+      //         createFile(`${hrefUrl}`, $.text(), url, defaultPath, "css");
+      //       }
+      //     });
+
+      //     element.attribs.href = `${defaultPath}${hrefUrl}`;
+      //   });
 
       // a标签
       $("a[href]")
         .toArray()
         .forEach((element) => {
+          if (exitFileArr.includes(element.attribs.href)) return;
+
           let hrefUrl = element.attribs.href;
 
           const pathArr: Array<string | never> = hrefUrl.split("/");
@@ -130,6 +185,7 @@ const spiderHtml = (url: string) => {
             // 新文件相对路径
             hrefUrl = pathArr.join("/");
           }
+          if (/\#/g.test(hrefUrl)) return;
 
           request(url + hrefUrl, (error, response, body) => {
             if (error === null && response.statusCode === 200) {
@@ -143,18 +199,26 @@ const spiderHtml = (url: string) => {
           // 修改路径为相对路径
           element.attribs.href = `${defaultPath}${hrefUrl}`;
         });
-      // 调用createFile方法
-      // createFile("/index.html", $.html(), url, "../download", "html");
 
-      if (x === 1)
+      if (x === 1) {
         fs.writeFile(`${defaultPath}/index.html`, $.html(), {}, () => {});
-      else {
+        exitFileArr.push("/index.html");
+      } else {
         // 取得文件的相对路径
         const filePath = url.split(webUrl).join("");
         fs.writeFile(`${defaultPath}${filePath}`, $.html(), {}, () => {});
+        exitFileArr.push(filePath);
       }
+
+      // 查看是否有重复元素
+      console.log(
+        exitFileArr.length,
+        new Set(exitFileArr).size != exitFileArr.length
+      );
     }
   });
 };
 
 spiderHtml(webUrl);
+
+// exports = spiderHtml;
