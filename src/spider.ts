@@ -19,7 +19,7 @@ const createDir = (arr: Array<string>) => {
 };
 
 let x = 0;
-const webUrl = "https://cn.vuejs.org";
+const webUrl = "https://www.ijjxs.com";
 const defaultPath = `D:/Do it/web/downode.js/download`;
 fs.mkdirSync(defaultPath);
 
@@ -65,12 +65,6 @@ const createFile = (
   // 删除不符合fileReg的字符
   filePath = filePath.replace(fileReg, "");
   const pathArr: Array<string | never> = filePath.split("/");
-  // if (pathArr[pathArr.length - 1] === "") {
-  //   //'/txt/wuxia' => ['','txt','wuxia',''] => ['','txt','wuxia','index.xxx']
-  //   pathArr[pathArr.length - 1] = `index.${fileType}`;
-  //   // 新文件相对路径
-  //   filePath = pathArr.join("/");
-  // }
 
   if (!/\./g.test(pathArr[pathArr.length - 1])) {
     pathArr.push(`index.html`);
@@ -83,32 +77,12 @@ const createFile = (
   if (pathArr.length === 1) return;
   // 如果是'/sss/aaa.xxx' => [ 'sss', 'aaa.xxx' ]，删尾项，如果是'/txt/wuxia' => '/txt/wuxia/index.html'
   pathArr.pop();
-  let dir: string = "";
-  for (const index in pathArr) {
-    dir += "/" + pathArr[index];
-    // 如果路径不存在，则创建
-    if (!fs.existsSync(defaultPath + dir)) {
-      fs.mkdirSync(defaultPath + dir);
-    }
-  }
+  createDir(pathArr);
 
-  if (fs.existsSync(`${defaultPath}${filePath}`))
-    return console.log("文件已存在");
-
-  // 开始递归
-  spiderHtml(`${webUrl}${filePath}`);
-  // console.log(`开始下载${defaultPath}${filePath}`);
-
-  // fs.writeFile(`${defaultPath}${filePath}`, content, {}, (error) => {
-  //   exitFileArr.push(filePath);
-  //   if (error) {
-  //     return console.log("error");
-  //   }
-
-  //   return console.log(`${webUrl}${filePath} 下载完成`);
-  // });
+  if (fileType === "html") spiderHtml(`${webUrl}${filePath}`);
 };
 
+//
 const spiderHtml = (url: string) => {
   if (exitFileArr.includes(url.split(webUrl).join(""))) return;
   x++;
@@ -117,7 +91,7 @@ const spiderHtml = (url: string) => {
   request(url, (error, response, body) => {
     //res.statusCode 为200则表示链接成功
     if (error === null && response.statusCode === 200) {
-      console.log(`${url}链接成功`);
+      // console.log(`${url}链接成功`);
       //使用cheerio来解析body（网页内容），提取我们想要的信息
       const $ = cheerio.load(body);
 
@@ -185,31 +159,17 @@ const spiderHtml = (url: string) => {
             // 新文件相对路径
             hrefUrl = pathArr.join("/");
           }
-          if (/\#/g.test(hrefUrl)) return;
+          if (/\#/g.test(hrefUrl) || fs.existsSync(`${defaultPath}${hrefUrl}`))
+            return;
 
-          request(url + hrefUrl, (error, response, body) => {
-            if (error === null && response.statusCode === 200) {
-              console.log(`${url + hrefUrl}链接成功`);
-              const $ = cheerio.load(body);
-
-              // 调用createFile方法
-              createFile(`${hrefUrl}`, $.html(), url, defaultPath, "html");
-            }
-          });
+          spiderHtml(url + hrefUrl);
           // 修改路径为相对路径
           element.attribs.href = `${defaultPath}${hrefUrl}`;
         });
 
-      if (x === 1) {
-        fs.writeFile(`${defaultPath}/index.html`, $.html(), {}, () => {});
-        exitFileArr.push("/index.html");
-      } else {
-        // 取得文件的相对路径
-        const filePath = url.split(webUrl).join("");
-        fs.writeFile(`${defaultPath}${filePath}`, $.html(), {}, () => {});
-        exitFileArr.push(filePath);
-      }
-
+      // createFile(`/index.html`, $.html(), url, defaultPath, "html");
+      // fs.writeFile(`${defaultPath}${filePath}`, content, {}, () => {});
+      // exitFileArr.push(filePath);
       // 查看是否有重复元素
       console.log(
         exitFileArr.length,
